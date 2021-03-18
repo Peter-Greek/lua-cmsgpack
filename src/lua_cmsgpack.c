@@ -585,12 +585,20 @@ int lua_msgpack_decode (lua_State *L, lua_msgpack *ud, const char *s,
 
 /* Returns messagepack.null */
 static int mp_null (lua_State *L) {
+#if LUA_VERSION_NUM == 501
+  lua_pushlightuserdata(L, (void *)(&mp_null));
+#else
   lua_pushcfunction(L, mp_null);
+#endif
   return 1;
 }
 
 int mp_is_null (lua_State *L, int idx) {
+#if LUA_VERSION_NUM == 501
+  return lua_touserdata(L, idx) == (void *)(&mp_null);
+#else
   return lua_tocfunction(L, idx) == mp_null;
+#endif
 }
 
 void mp_replace_null (lua_State *L) {

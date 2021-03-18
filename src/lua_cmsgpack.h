@@ -283,7 +283,11 @@ static int lua_mpbuffer_iappend (void *data, const char *s, size_t len) {
 #define LUACMSGPACK_USERDATA "LUACMSGPACK"
 
 /* @TODO: Option to allow external linkage of these functions */
-#define LUA_MP_API LUAI_FUNC
+#if defined(LUAI_FUNC)
+  #define LUA_MP_API LUAI_FUNC
+#else
+  #define LUA_MP_API static
+#endif
 
 #define MP_OPEN                0x01  /* Userdata data resources are alive. */
 #define MP_PACKING             0x02  /* Deallocate packing structures */
@@ -721,14 +725,21 @@ static LUACMSGPACK_INLINE void lua_pack_any (lua_State *L, lua_msgpack *ud, int 
     case LUA_TSTRING: lua_pack_parse_string(L, ud, idx); break;
     case LUA_TTABLE: lua_pack_extended_table(L, ud, idx, level); break;
     case LUA_TFUNCTION: {
+#if LUA_VERSION_NUM > 501
       if (mp_is_null(L, idx)) {
         msgpack_pack_nil(&(ud->u.packed.packer));
         break;
       }
+#endif
       lua_pack_type_extended(L, ud, idx);
       break;
     }
     case LUA_TLIGHTUSERDATA: {
+#if LUA_VERSION_NUM == 501
+      if (mp_is_null(L, idx))
+        msgpack_pack_nil(&(ud->u.packed.packer));
+      else
+#endif
       /*
       ** TODO: Improve how light userdata is managed. Ideally, there will be
       **       API function lua_msgpack_type_extension( ..., lua_CFunction,

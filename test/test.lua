@@ -554,8 +554,17 @@ test_unpack_one("simple", cmsgpack.pack({f = 3, j = 2}, "m", "e", 7), "m", offse
 cmsgpack.setoption("sentinel", false)
 test_unpack("nullkey", "82c001a2696402", { id = 2, })
 
+--[[
+    Lua51/LuaJIT requires invoking the function; other Lua versions treat
+    sentinel as a 'light' C function, where cmsgpack.sentinel == cmsgpack.sentinel()
+--]]
 cmsgpack.setoption("sentinel", true)
-test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel] = 1, })
+if cmsgpack.sentinel == cmsgpack.sentinel() then
+    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel] = 1, })
+    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel()] = 1, })
+else
+    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel()] = 1, })
+end
 
 -- Final report
 print()
