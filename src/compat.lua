@@ -171,7 +171,7 @@ end
 
         m.settype("function", 42)
 
-NOTES:
+@NOTES:
     Use the debug library to serialize and reload the upvalues of a function in
     a way adequate to your needs.
 --]]

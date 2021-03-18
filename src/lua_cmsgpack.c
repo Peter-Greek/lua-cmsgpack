@@ -11,7 +11,7 @@
 #include <string.h>
 #include <limits.h>
 
-/* Before Lua includes to account for potential Lua debug definitions*/
+/* Before Lua includes to account for potential Lua debug definitions */
 #include "lua_cmsgpack.h"
 #include "lua_cmsgpacklib.h"
 
@@ -67,9 +67,11 @@ static int typetoindex (lua_State *L, const char *name) {
 }
 
 /*
-** If the stack argument is a convertible to a size_t from an lua_Integer,
-** returns the size_t. If the argument is absent or is nil, returns def.
-** Otherwise, throw an error.
+** luaL_optinteger: for size_t type-casting.
+**
+** If the function argument arg is an integer (or it is convertible to an
+** integer), that can be safely type-casted to a size t: returns this integer.
+** If this argument is absent or is nil, returns def. Otherwise, raises an error
 */
 static size_t luaL_optsizet (lua_State *L, int arg, size_t def) {
   if (lua_isnoneornil(L, arg))
@@ -830,14 +832,15 @@ static const char *const opts[] = {
   "unsigned", "integer", "float", "double",
   "string_compat", "string_binary",
   "empty_table_as_array", "without_hole", "with_hole", "always_as_map",
-  "small_lua", "full64bits", "long_double", "sentinel", mp_nullptr
+  "small_lua", "full64bits", "long_double", "sentinel", "ignore_invalid",
+  mp_nullptr
 };
 
 static const lua_Integer optsnum[] = {
   MP_UNSIGNED_INTEGERS, MP_NUMBER_AS_INTEGER, MP_NUMBER_AS_FLOAT, MP_NUMBER_AS_DOUBLE,
   MP_STRING_COMPAT, MP_STRING_BINARY,
   MP_EMPTY_AS_ARRAY, MP_ARRAY_WITHOUT_HOLES, MP_ARRAY_WITH_HOLES, MP_ARRAY_AS_MAP,
-  MP_SMALL_LUA, MP_FULL_64_BITS, MP_LONG_DOUBLE, MP_USE_SENTINEL,
+  MP_SMALL_LUA, MP_FULL_64_BITS, MP_LONG_DOUBLE, MP_USE_SENTINEL, MP_IGNORE_INVALID,
 };
 
 #if defined(__cplusplus)
@@ -1069,6 +1072,7 @@ LUALIB_API int mp_setoption (lua_State *L) {
 
   lua_Integer flags = mp_getregi(L, LUACMSGPACK_REG_OPTIONS, MP_DEFAULT);
   switch (opt) {
+    case MP_IGNORE_INVALID:
     case MP_USE_SENTINEL:
     case MP_EMPTY_AS_ARRAY:
     case MP_UNSIGNED_INTEGERS: {
@@ -1117,6 +1121,7 @@ LUALIB_API int mp_getoption (lua_State *L) {
   const lua_Integer flags = mp_getregi(L, LUACMSGPACK_REG_OPTIONS, MP_DEFAULT);
 
   switch (opt) {
+    case MP_IGNORE_INVALID:
     case MP_USE_SENTINEL:
     case MP_EMPTY_AS_ARRAY:
     case MP_UNSIGNED_INTEGERS:

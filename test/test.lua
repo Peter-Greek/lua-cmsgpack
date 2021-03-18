@@ -1,5 +1,6 @@
 -- lua_cmsgpack.c lib tests
 -- Copyright(C) 2012 Salvatore Sanfilippo, All Rights Reserved.
+-- Copyright(C) 2021 gottfriedleibniz, All Rights Reserved.
 -- See the copyright notice at the end of lua_cmsgpack.c for more information.
 
 local cmsgpack = cmsgpack

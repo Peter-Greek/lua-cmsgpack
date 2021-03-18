@@ -25,23 +25,31 @@ extern "C++" {
 #include "msgpack/pack.h"
 #include "msgpack/unpack.h"
 #include "msgpack/zone.h"
-#include "lua_pack_template.h"
+
+#include "pack_template_ext.h"
 
 /* @TODO: Support 16-bit Lua */
 #if !defined(LUACMSGPACK_BIT32) && UINTPTR_MAX == UINT_MAX
   #define LUACMSGPACK_BIT32
 #endif
 
-/* Maximum recursive-depth/table-nesting. */
+/*
+** Maximum recursive-depth/table-nesting.
+**
+** @TODO: Similar to dkjson.lua; allow an additional table argument that can
+**  be used to cache processed tables. Ensuring no cycles exist while not having
+**  to be as concerned about luaL_checkstack leaks.
+*/
 #if !defined(MP_MAX_NESTING)
   #define MP_MAX_NESTING 16
 #endif
 
 /*
-** Threshold for mp_table_is_an_array: If a table has an integer key greater
-** than this value, ensure at least half of the keys within the table have
-** elements to be encoded as an array; this addition is technically not
-** one-to-one with MessagePack.lua.
+** Threshold for mp_table_is_an_array: If a table, with only integer keys, has
+** a key greater than this value, ensure at least half of the keys within the
+** table have elements to be encoded as an array. This addition is technically
+** not one-to-one with MessagePack.lua, however, is a simple memory-saving
+** heuristic.
 */
 #if !defined(MP_TABLE_CUTOFF)
   #define MP_TABLE_CUTOFF 16
@@ -55,7 +63,8 @@ extern "C++" {
 /*
 ** Default chunk msgpack_zone chunk size.
 **
-** @TODO: Experiment with changing this (and other values) based on some input heuristic.
+** @TODO: Experiment with changing this (and other values) based on some input
+**        heuristic.
 */
 #if !defined(MP_ZONE_CHUNK_SIZE)
   #define MP_ZONE_CHUNK_SIZE 256
@@ -76,7 +85,7 @@ extern "C++" {
 #endif
 
 /*
-** When compiling for C++ bundles, include macros for common warnings, e.g.,
+** When compiling for C++, include macros for common warnings, e.g.,
 ** -Wold-style-cast.
 */
 #if defined(__cplusplus)
@@ -100,20 +109,10 @@ extern "C++" {
   #define mp_getfield(L, I, K) (lua_getfield((L), (I), (K)), lua_type((L), -1))
 #endif
 
-/* Unnecessary & unsafe macro to disable checkstack */
-#if defined(LUACMSGPACK_UNSAFE)
-  #define mp_checkstack(L, sz) ((void)0)
-#else
-  #define mp_checkstack(L, sz) luaL_checkstack((L), (sz), "too many (nested) values in encoded msgpack")
-#endif
-
 /* lua_absindex introduced in Lua 52 */
 #if LUA_VERSION_NUM < 502
   #define lua_absindex(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
 #endif
-
-/* Relative index utility */
-#define mp_rel_index(idx, n) (((idx) < 0) ? ((idx) - (n)) : (idx))
 
 /* Lua 54 changed the definition of lua_newuserdata */
 #if LUA_VERSION_NUM >= 504
@@ -130,6 +129,16 @@ extern "C++" {
 #else
   #define mp_nil_metafield 0
 #endif
+
+/* Unnecessary & unsafe macro to disable checkstack */
+#if defined(LUACMSGPACK_UNSAFE)
+  #define mp_checkstack(L, sz) ((void)0)
+#else
+  #define mp_checkstack(L, sz) luaL_checkstack((L), (sz), "too many (nested) values in encoded msgpack")
+#endif
+
+/* Relative index utility */
+#define mp_rel_index(idx, n) (((idx) < 0) ? ((idx) - (n)) : (idx))
 
 /* }================================================================== */
 
@@ -161,6 +170,7 @@ extern "C++" {
   #error unsupported Lua version
 #endif
 
+/* lua_Integer supported introduced in 53 */
 #if LUA_VERSION_NUM >= 503
   #define mp_isinteger(L, idx) lua_isinteger((L), (idx))
 #else
@@ -272,6 +282,9 @@ static int lua_mpbuffer_iappend (void *data, const char *s, size_t len) {
 
 #define LUACMSGPACK_USERDATA "LUACMSGPACK"
 
+/* @TODO: Option to allow external linkage of these functions */
+#define LUA_MP_API LUAI_FUNC
+
 #define MP_OPEN                0x01  /* Userdata data resources are alive. */
 #define MP_PACKING             0x02  /* Deallocate packing structures */
 #define MP_UNPACKING           0x04  /* Deallocate unpacking structures */
@@ -299,7 +312,10 @@ static int lua_mpbuffer_iappend (void *data, const char *s, size_t len) {
 #define MP_SMALL_LUA           0x4000 /* Compatibility only */
 #define MP_FULL_64_BITS        0x8000 /* Compatibility only */
 #define MP_LONG_DOUBLE         0x10000 /* Compatibility option: Lua is compiled for long doubles */
+
+/* Additional feature flags */
 #define MP_USE_SENTINEL        0x20000 /* Replacement for nil table keys */
+#define MP_IGNORE_INVALID      0x40000 /* Ignore invalid types during encoding instead of throwing an error */
 
 #define MP_MODE (MP_PACKING | MP_UNPACKING | MP_EXTERNAL)
 #define MP_MASK_RUNTIME (MP_OPEN | MP_MODE)  /* flags that can't be setoption'd */
@@ -331,9 +347,6 @@ static int lua_mpbuffer_iappend (void *data, const char *s, size_t len) {
 
 /* A value not within LUACMSGPACK_EXT_VALID */
 #define EXT_INVALID -1024
-
-/* TODO: Option to allow external linkage of these functions */
-#define LUA_MP_API LUAI_FUNC
 
 /* Userdata structure for managing/cleaning message packing */
 typedef struct lua_msgpack {
@@ -386,14 +399,11 @@ LUA_MP_API void lua_msgpack_encode (lua_State *L, lua_msgpack *ud, int idx, int 
 ** MessagePack encoded string, placing those decoded elements on top of the Lua
 ** stack and returning the number of decoded values.
 **
-** PARAMETERS:
-**   L - Lua State.
-**   ud - Active & initialized MessagePack decoder.
-**   s - MessagePack encoded string.
-**   len - length of encoded string.
-**   offset - Offset within the string to begin/continue decoding.
-**   limit - number of elements to decode (0 for all).
-**   error - Returned error message on failure.
+** @PARAM s - MessagePack encoded string.
+** @PARAM len - length of encoded string.
+** @PARAM offset - Offset within the string to begin/continue decoding.
+** @PARAM limit - number of elements to decode (0 for all).
+** @PARAM error - Returned error message on failure.
 **
 ** RETURN:
 **    The number of decoded values placed onto the Lua stack; with zero denoting
@@ -431,8 +441,8 @@ LUA_MP_API lua_Integer mp_ext_type (lua_State *L, int idx);
 ** extension-type identifier (ext_id). Returning non-zero on success; zero on
 ** failure (e.g., extension type not registered).
 **
-** @TODO: Missing level. With a poorly defined extension encoder, cycles can
-**  exist and the encoder level isn't propagated.
+** @TODO: Missing 'nesting' value: with a poorly defined extension encoder,
+**  cycles can exist and the library cannot be defensive about.
 */
 LUA_MP_API int mp_encode_ext_lua_type (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id);
 
@@ -442,19 +452,18 @@ LUA_MP_API int mp_encode_ext_lua_type (lua_State *L, lua_msgpack *ud, int idx, i
 ** strictly positive; and (4) form a contiguous sequence.
 **
 ** However, with the flag "MP_ARRAY_WITH_HOLES" set, condition (4) is alleviated
-** and msgpack can encode "null" in the nil array indices.
+** and msgpack can encode "null" for nil array indices.
 */
 LUA_MP_API int mp_table_is_an_array (lua_State *L, int idx, lua_Integer flags, size_t *array_length);
 
 /*
 ** Encode the table at the specified stack index as an array.
 **
-** PARAMETERS:
-**  idx - stack (or relative) index of the lua table.
-**  level - current recursive/encoding depth, used as a short-hand to avoid an
-**    explicit structure to avoid cycles among tables.
-**  array_length - precomputed array length; at worst use lua_objlen/lua_rawlen
-**    to compute this value.
+** @PARAM idx - stack (or relative) index of the lua table.
+** @PARAM level - current recursive/encoding depth, used as a short-hand to
+**  avoid an explicit structure to avoid cycles among tables.
+** @PARAM array_length - precomputed array length; at worst use lua_objlen or
+**  lua_rawlen to compute this value.
 */
 LUA_MP_API void mp_encode_lua_table_as_array (lua_State *L, lua_msgpack *ud, int idx, int level, size_t array_length);
 
@@ -670,10 +679,15 @@ static LUACMSGPACK_INLINE void lua_pack_parse_string (lua_State *L, lua_msgpack 
 }
 
 static LUACMSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack *ud, int idx) {
-  int t = lua_type(L, idx);
+  const int t = lua_type(L, idx);
   lua_Integer type = 0;
   if ((type = mp_ext_type(L, idx)) != EXT_INVALID) {
     if (!mp_encode_ext_lua_type(L, ud, idx, mp_cast(int8_t, type))) {
+      if ((ud->flags & MP_IGNORE_INVALID)) {
+        msgpack_pack_nil(&ud->u.packed.packer);
+        return;
+      }
+
       luaL_error(L, "msgpack extension type: not registered!");
       return;
     }
@@ -681,6 +695,8 @@ static LUACMSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack
   else if (mp_encode_ext_lua_type(L, ud, idx, LUACMSGPACK_LUATYPE_EXT(t))) {
     /* do nothing */
   }
+  else if ((ud->flags & MP_IGNORE_INVALID))
+    msgpack_pack_nil(&ud->u.packed.packer);
   else {
     luaL_error(L, "type <%s> cannot be msgpack'd", lua_typename(L, t));
   }
