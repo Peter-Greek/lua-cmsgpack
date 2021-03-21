@@ -3,7 +3,7 @@
         lua-MessagePack : <http://fperrad.github.io/lua-MessagePack/>
 --]]
 
-local m = require('cmsgpack')
+local m = require('msgpack')
 local msgpack_pack = m.pack
 local msgpack_unpack = m.unpack
 
@@ -32,7 +32,7 @@ local function cursor_string(str)
         if p_pos < 1 then return nil,nil end
 
         local pos = p_pos
-        p_pos,element = msgpack.next(str, pos, 1)
+        p_pos,element = m.next(str, pos, 1)
         if p_pos < 0 then
             error("missing bytes")
         else
@@ -65,10 +65,10 @@ local function cursor_function(ld)
         end
 
         local p_off = offset
-        local n_pos,element = msgpack.next(s, i, 1)
+        local n_pos,element = m.next(s, i, 1)
         while n_pos < 0 do
             underflow()
-            n_pos,element = msgpack.next(s, i, 1)
+            n_pos,element = m.next(s, i, 1)
             if n_pos == 0 then
                 offset = offset + j - i + 1
                 s,i,j = "",1,0
@@ -171,7 +171,7 @@ end
 
         m.settype("function", 42)
 
-@NOTES:
+@NOTE:
     Use the debug library to serialize and reload the upvalues of a function in
     a way adequate to your needs.
 --]]

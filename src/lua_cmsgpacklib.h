@@ -1,15 +1,15 @@
 /*
-** See LICENSE.
+** See Copyright Notice at the end of this file
 */
 #ifndef lua_cmsgpacklib_h
 #define lua_cmsgpacklib_h
 
 #include <lua.h>
 
-#define LUACMSGPACK_NAME "lua-msgpack-c"
-#define LUACMSGPACK_VERSION "lua-msgpack-c 1.2.0"
-#define LUACMSGPACK_COPYRIGHT "Copyright (C) 2021, Gottfried Leibniz"
-#define LUACMSGPACK_DESCRIPTION "msgpack-c bindings for Lua"
+#define LUA_MSGPACK_NAME "luamsgpack-c"
+#define LUA_MSGPACK_VERSION "luamsgpack-c 1.2.0"
+#define LUA_MSGPACK_COPYRIGHT "Copyright (C) 2021, Gottfried Leibniz"
+#define LUA_MSGPACK_DESCRIPTION "msgpack-c bindings for Lua"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -25,8 +25,8 @@ extern "C" {
   #define LUAMOD_API LUALIB_API
 #endif
 
-#define LUACMSGPACK_LIBNAME "cmsgpack"
-LUAMOD_API int (luaopen_cmsgpack) (lua_State *L);
+#define LUA_MSGPACK_LIBNAME "msgpack"
+LUAMOD_API int (luaopen_msgpack) (lua_State *L);
 
 /* }================================================================== */
 
@@ -76,7 +76,7 @@ LUALIB_API int mp_unpack (lua_State *L);
 LUALIB_API int mp_unpack_compat (lua_State *L);
 
 /*
-** next(encoded_string [, position [, limit [, end_position ]]]: Unpack all
+** next(encoded_string [, position [, limit [, end_position ]]]): Unpack all
 ** elements, up to a potential limit, from a msgpack encoded string. Placing
 ** (1) the position in the string where the decoding ended, 0 for completion;
 ** and (2) and all decoded objects (up to limit). And returning the number of
@@ -155,11 +155,11 @@ LUALIB_API int mp_packer_new (lua_State *L);
 **     __ext = 0x15,  -- Extension type identifier
 **
 **     __pack = function(self, type) -- Object Serialization
-**       return cmsgpack.pack(self.x, self.y, self.z)
+**       return msgpack.pack(self.x, self.y, self.z)
 **     end,
 **
 **     __unpack = function(encoded, type) -- Factory
-**       local x,y,z = cmsgpack.unpack(encoded)
+**       local x,y,z = msgpack.unpack(encoded)
 **       return setmetatable({x = x, y = y, z = z}, metatable)
 **     end,
 **
@@ -178,8 +178,8 @@ LUALIB_API int mp_set_extension (lua_State *L);
 LUALIB_API int mp_get_extension (lua_State *L);
 
 /*
-** Explicitly remove the msgpack extension definition for each of the type
-** identifiers provided to this function; returning zero.
+** Explicitly remove the msgpack extension definition for all type identifiers
+** provided to this function.
 */
 LUALIB_API int mp_clear_extension (lua_State *L);
 
@@ -189,15 +189,15 @@ LUALIB_API int mp_clear_extension (lua_State *L);
 ** type identifier.
 **
 **  The "association" can either be an extension-type identifier (integer),
-**  e.g., cmsgpack.settype("function", 0x10); or an additional encoder table:
+**  e.g., msgpack.settype("function", 0x10); or an additional encoder table:
 **    m.settype("function", {
 **
 **      __pack = function(self, t)
-**        return cmsgpack.pack( ... )
+**        return msgpack.pack( ... )
 **      end,
 **
 **      __unpack = function(s, t)
-**        local ... = cmsgpack.unpack
+**        local ... = msgpack.unpack
 **          return function() -- An iterator factory
 **            -- Do something with ...
 **          end
@@ -216,31 +216,38 @@ LUALIB_API int mp_set_type_extension (lua_State *L);
 /* Get the encoder table associated to the name of a Lua type. */
 LUALIB_API int mp_get_type_extension (lua_State *L);
 
+/* Returns msgpack.null */
+LUALIB_API int mp_null (lua_State *L);
+
 /*
 ** BOOLEAN:
-**  unsigned - Encode integers as unsigned values when possible, i.e., positive
-**    lua_Integers are msgpacked as unsigned int; this is default for
-**    lua-MessagePack.
-**  integer - Encodes lua_Number's as, possibly unsigned, integers, regardless
-**    of type.
-**  float - Encodes lua_Number's as float, regardless of type.
-**  double - Encodes lua_Number's as double, regardless of type.
-**  string_compat: Use MessagePack v4's spec for encoding strings.
-**  string_binary: Encode strings using the binary tag.
-**  empty_table_as_array: empty tables encoded as arrays. Beware, when
-**    'always_as_map' is enabled, this flag is forced to disabled (and persists).
-**  without_hole: Only contiguous arrays (i.e., [1, N] all contain non-nil elements)
+**  'unsigned': Encode integers as unsigned values when possible, i.e., positive
+**    lua_Integers are packed as unsigned int; this is default for lua-MessagePack.
+**  'integer': Encodes lua_Number's as, possibly unsigned, integers, regardless
+**    of type
+**  'float': Encodes a lua_Number as float, regardless of type.
+**  'double': Encodes a lua_Number as double, regardless of type.
+**
+**  'string_compat': Use MessagePack v4's spec for encoding strings.
+**  'string_binary': Encode strings using the binary tag.
+**
+**  'always_as_map': Encode all tables as a sequence of <key, value> pairs.
+**  'without_hole': Only contiguous arrays (i.e., [1, N] all contain non-nil elements)
 **    to be encoded as arrays.
-**  with_hole: Allow tables to be encoded as arrays iff all keys are positive
+**  'with_hole': Allow tables to be encoded as arrays iff all keys are positive
 **    integers, inserting "nil"s when encoding to satisfy the array type.
-**  always_as_map: Encode all tables as a sequence of <key, value> pairs.
-**  small_lua: Compat
-**  full64bits: Compat
-**  long_double: Compat
-**  sentinel: Replace 'nil' values with a 'sentinel' value during unpacking.
+**  'empty_table_as_array': empty tables encoded as arrays. Beware, when
+**    'always_as_map' is enabled, this flag is forced to disabled (and persists).
+**
+**  'sentinel': Replace 'nil' values with a 'sentinel' value during unpacking.
 **    The packer will always replace sentinel's with null during packing.
-**  ignore_invalid: Ignore invalid types (i.e., ones without 'type' extensions)
+**
+**  'ignore_invalid': Ignore invalid types (i.e., ones without 'type' extensions)
 **    during encoding by packing 'nil' instead of throwing an error.
+**
+**  'small_lua': lua-MessagePack compatibility field.
+**  'full64bits': lua-MessagePack compatibility field.
+**  'long_double': lua-MessagePack compatibility field.
 */
 LUALIB_API int mp_setoption (lua_State *L);
 LUALIB_API int mp_getoption (lua_State *L);
@@ -252,8 +259,9 @@ LUALIB_API int mp_getoption (lua_State *L);
 #endif
 
 /******************************************************************************
-* lua-msgpack-c
+* luamsgpack-c
 * Copyright (C) 2021 - gottfriedleibniz
+* Copyright (C) 2012 - Salvatore Sanfilippo (https://github.com/antirez/lua-cmsgpack)
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

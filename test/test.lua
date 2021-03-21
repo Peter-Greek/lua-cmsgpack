@@ -1,11 +1,11 @@
--- lua_cmsgpack.c lib tests
+-- lua_msgpack.c lib tests
 -- Copyright(C) 2012 Salvatore Sanfilippo, All Rights Reserved.
 -- Copyright(C) 2021 gottfriedleibniz, All Rights Reserved.
--- See the copyright notice at the end of lua_cmsgpack.c for more information.
+-- See the copyright notice at the end of lua_msgpack.c for more information.
 
-local cmsgpack = cmsgpack
-if not cmsgpack then
-    cmsgpack = require "cmsgpack"
+local msgpack = msgpack
+if not msgpack then
+    msgpack = require "msgpack"
 end
 
 print("------------------------------------")
@@ -52,8 +52,8 @@ function unhex(h)
 end
 
 function test_error(name, fn)
-    if cmsgpack.safe() then
-        print("skip: `cmsgpack.safe` module")
+    if msgpack.safe() then
+        print("skip: `msgpack.safe` module")
         skipped = skipped + 1
         return
     end
@@ -72,8 +72,8 @@ end
 
 local function test_multiple(name, ...)
     io.write("Multiple test '",name,"' ...")
-    if not compare_objects({...},{cmsgpack.unpack(cmsgpack.pack(...))}) then
-        print("ERROR:", {...}, cmsgpack.unpack(cmsgpack.pack(...)))
+    if not compare_objects({...},{msgpack.unpack(msgpack.pack(...))}) then
+        print("ERROR:", {...}, msgpack.unpack(msgpack.pack(...)))
         failed = failed+1
     else
         print("ok")
@@ -83,8 +83,8 @@ end
 
 function test_noerror(name, fn)
     io.write("Testing safe calling '",name,"' ...")
-    if not cmsgpack.safe() then
-        print("skip: no `cmsgpack.safe` module")
+    if not msgpack.safe() then
+        print("skip: no `msgpack.safe` module")
         skipped = skipped + 1
         return
     end
@@ -121,8 +121,8 @@ end
 
 function test_circular(name,obj)
     io.write("Circular test '",name,"' ...")
-    if not compare_objects(obj,cmsgpack.unpack(cmsgpack.pack(obj))) then
-        print("ERROR:", obj, cmsgpack.unpack(cmsgpack.pack(obj)))
+    if not compare_objects(obj,msgpack.unpack(msgpack.pack(obj))) then
+        print("ERROR:", obj, msgpack.unpack(msgpack.pack(obj)))
         failed = failed+1
     else
         print("ok")
@@ -174,19 +174,19 @@ function test_partial_unpack(name, count, ...)
         offset = first.o
         cargs = {pack, offset, count}
     else
-        pack = cmsgpack.pack(unpack({...}))
+        pack = msgpack.pack(unpack({...}))
         args = {...}
         cargs = {pack, 1, count}
     end
     if offset and offset <= 0 then
-        ok, unpacked, err = pcall(function()return {cmsgpack.next(unpack(cargs))} end)
+        ok, unpacked, err = pcall(function()return {msgpack.next(unpack(cargs))} end)
         if not ok then
             print("ok; received error as expected") --, unpacked)
             passed = passed + 1
             return
         end
     else
-        unpacked = {cmsgpack.next(unpack(cargs))}
+        unpacked = {msgpack.next(unpack(cargs))}
         -- print ("GOT RETURNED:", unpack(unpacked))
     end
 
@@ -221,12 +221,12 @@ end
 
 function test_pack(name,obj,raw,optraw)
     io.write("Testing encoder '",name,"' ...")
-    local result = hex(cmsgpack.pack(obj))
+    local result = hex(msgpack.pack(obj))
     if optraw and (result == optraw) then
         print("ok")
         passed = passed + 1
     elseif result ~= raw then
-        print("ERROR:", obj, hex(cmsgpack.pack(obj)), raw)
+        print("ERROR:", obj, hex(msgpack.pack(obj)), raw)
         failed = failed+1
     else
         print("ok")
@@ -236,7 +236,7 @@ end
 
 function test_unpack_one(name, packed, check, offset)
     io.write("Testing one unpack '",name,"' ...")
-    local unpacked = {cmsgpack.next(unpack({packed, offset, 1}))}
+    local unpacked = {msgpack.next(unpack({packed, offset, 1}))}
 
     if #unpacked > 2 then
         print("ERROR: unpacked more than one object:", unpack(unpacked))
@@ -254,8 +254,8 @@ end
 
 function test_unpack(name,raw,obj)
     io.write("Testing decoder '",name,"' ...")
-    if not compare_objects(cmsgpack.unpack(unhex(raw)),obj) then
-        print("ERROR:", obj, raw, cmsgpack.unpack(unhex(raw)))
+    if not compare_objects(msgpack.unpack(unhex(raw)),obj) then
+        print("ERROR:", obj, raw, msgpack.unpack(unhex(raw)))
         failed = failed+1
     else
         print("ok")
@@ -278,8 +278,8 @@ local function test_array()
     local test_obj = {10,20,30}
     assert(compare_objects(test_obj, a))
 
-    local etalon = cmsgpack.pack(test_obj)
-    local encode = cmsgpack.pack(a)
+    local etalon = msgpack.pack(test_obj)
+    local encode = msgpack.pack(a)
 
     if etalon ~= encode then
         print("ERROR:")
@@ -294,7 +294,7 @@ local function test_array()
     io.write("Testing array detection ...")
 
     a = {["1"] = 20, [2] = 30, [3] = 40}
-    encode = cmsgpack.pack(a)
+    encode = msgpack.pack(a)
     if etalon == encode then
         print("ERROR:")
         print("", " incorrect: ", hex(etalon))
@@ -344,7 +344,7 @@ test_circular("higher bits", -0x7FFFFFFFFFFFFFFF)
 
 test_pack_and_unpack("positive fixnum",0,"00")
 test_pack_and_unpack("negative fixnum",-1,"ff")
-if cmsgpack.getoption("unsigned") then
+if msgpack.getoption("unsigned") then
     test_pack_and_unpack("uint8",255,"ccff")
 else
     test_pack_and_unpack("uint8",255,"d100ff")
@@ -356,7 +356,7 @@ test_pack_and_unpack("nil",nil,"c0")
 test_pack_and_unpack("true",true,"c3")
 test_pack_and_unpack("false",false,"c2")
 test_pack_and_unpack("double",0.1,"cb3fb999999999999a")
-if cmsgpack.getoption("unsigned") then
+if msgpack.getoption("unsigned") then
     test_pack_and_unpack("uint16",32768,"cd8000")
     test_pack_and_unpack("uint32",1048576,"ce00100000")
     test_pack_and_unpack("uint32+1",0x7FFFFFFF + 1,"ce80000000")
@@ -379,7 +379,7 @@ test_unpack("bin16", "c501012020202020202020202020202020202020202020202020202020
 a = {x=nil,y=5}
 b = {x=a}
 a['x'] = b
-pack = cmsgpack.pack(a)
+pack = msgpack.pack(a)
 -- Note: the generated result isn't stable because the order of traversal for
 -- a table isn't defined. So far we've only noticed two serializations of a
 -- (and the second serialization only happens on Lua 5.3 sometimes)
@@ -388,36 +388,36 @@ test_circular("regression for issue #4 circular",a)
 
 -- test unpacking malformed input without crashing.  This actually returns one integer value (the ASCII code)
 -- for each character in the string.  We don't care about the return value, just that we don't segfault.
-cmsgpack.unpack("82a17881a17882a17881a17882a17881a17882a17881a17882a17881a17882a17881a17882a17881a17882a17881a17")
+msgpack.unpack("82a17881a17882a17881a17882a17881a17882a17881a17882a17881a17882a17881a17882a17881a17882a17881a17")
 
 -- Test unpacking input which may cause overflow memory access ("-1" for 32-bit size fields).
 -- These should cause a Lua error but not a segfault.
-test_error("unpack big string with missing input", function() cmsgpack.unpack("\219\255\255\255\255Z") end)
-test_error("unpack big array with missing input", function() cmsgpack.unpack("\221\255\255\255\255Z") end)
-test_error("unpack big map with missing input", function() cmsgpack.unpack("\223\255\255\255\255Z") end)
+test_error("unpack big string with missing input", function() msgpack.unpack("\219\255\255\255\255Z") end)
+test_error("unpack big array with missing input", function() msgpack.unpack("\221\255\255\255\255Z") end)
+test_error("unpack big map with missing input", function() msgpack.unpack("\223\255\255\255\255Z") end)
 
 -- Tests from github.com/moteus
 test_circular("map with number keys", {[1] = {1,2,3}})
 test_circular("map with string keys", {["1"] = {1,2,3}})
 test_circular("map with string keys", {["1"] = 20, [2] = 30, ["3"] = 40})
 test_circular("map with float keys", {[1.5] = {1,2,3}})
-test_error("unpack nil", function() cmsgpack.unpack(nil) end)
-test_error("unpack table", function() cmsgpack.unpack({}) end)
-test_error("unpack udata", function() cmsgpack.unpack(io.stdout) end)
-test_noerror("unpack nil", function() cmsgpack.unpack(nil) end)
-test_noerror("unpack nil", function() cmsgpack.unpack(nil) end)
-test_noerror("unpack table", function() cmsgpack.unpack({}) end)
-test_noerror("unpack udata", function() cmsgpack.unpack(io.stdout) end)
+test_error("unpack nil", function() msgpack.unpack(nil) end)
+test_error("unpack table", function() msgpack.unpack({}) end)
+test_error("unpack udata", function() msgpack.unpack(io.stdout) end)
+test_noerror("unpack nil", function() msgpack.unpack(nil) end)
+test_noerror("unpack nil", function() msgpack.unpack(nil) end)
+test_noerror("unpack table", function() msgpack.unpack({}) end)
+test_noerror("unpack udata", function() msgpack.unpack(io.stdout) end)
 test_multiple("two ints", 1, 2)
 test_multiple("holes", 1, nil, 2, nil, 4)
 
 -- Streaming/Multi-Input Tests
-test_stream(cmsgpack, "simple", {a=1}, {b=2}, {c=3}, 4, 5, 6, 7)
-test_stream(cmsgpack, "safe simple", {a=1}, {b=2}, {c=3}, 4, 5, 6, 7)
-test_stream(cmsgpack, "oddities", {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, {0}, {a=64}, math.huge, -math.huge)
-test_stream(cmsgpack, "strange things", nil, {}, {nil}, a, b, b, b, a, a, b, {c = a, d = b})
-test_error("pack nothing", function() cmsgpack.pack() end)
-test_noerror("pack nothing safe", function() cmsgpack.pack() end)
+test_stream(msgpack, "simple", {a=1}, {b=2}, {c=3}, 4, 5, 6, 7)
+test_stream(msgpack, "safe simple", {a=1}, {b=2}, {c=3}, 4, 5, 6, 7)
+test_stream(msgpack, "oddities", {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, {0}, {a=64}, math.huge, -math.huge)
+test_stream(msgpack, "strange things", nil, {}, {nil}, a, b, b, b, a, a, b, {c = a, d = b})
+test_error("pack nothing", function() msgpack.pack() end)
+test_noerror("pack nothing safe", function() msgpack.pack() end)
 test_circular("large object test",
     {A=9483, a=9483, aa=9483, aal=9483, aalii=9483, aam=9483, Aani=9483,
     aardvark=9483, aardwolf=9483, Aaron=9483, Aaronic=9483, Aaronical=9483,
@@ -548,22 +548,22 @@ packed, offset = test_partial_unpack("unpack 3 out of 7", 3, "a", "b", "c", "d",
 test_partial_unpack("unpack remaining 4", 4, {p=packed,o=offset,remaining={"d", "e", "f", "g"}})
 
 test_unpack_one("simple", packed, "a")
-offset = test_unpack_one("simple", cmsgpack.pack({f = 3, j = 2}, "m", "e", 7), {f = 3, j = 2})
-test_unpack_one("simple", cmsgpack.pack({f = 3, j = 2}, "m", "e", 7), "m", offset)
+offset = test_unpack_one("simple", msgpack.pack({f = 3, j = 2}, "m", "e", 7), {f = 3, j = 2})
+test_unpack_one("simple", msgpack.pack({f = 3, j = 2}, "m", "e", 7), "m", offset)
 
-cmsgpack.setoption("sentinel", false)
+msgpack.setoption("sentinel", false)
 test_unpack("nullkey", "82c001a2696402", { id = 2, })
 
 --[[
     Lua51/LuaJIT requires invoking the function; other Lua versions treat
-    sentinel as a 'light' C function, where cmsgpack.sentinel == cmsgpack.sentinel()
+    sentinel as a 'light' C function, where msgpack.sentinel == msgpack.sentinel()
 --]]
-cmsgpack.setoption("sentinel", true)
-if cmsgpack.sentinel == cmsgpack.sentinel() then
-    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel] = 1, })
-    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel()] = 1, })
+msgpack.setoption("sentinel", true)
+if msgpack.sentinel == msgpack.sentinel() then
+    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel] = 1, })
+    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel()] = 1, })
 else
-    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [cmsgpack.sentinel()] = 1, })
+    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel()] = 1, })
 end
 
 -- Final report
