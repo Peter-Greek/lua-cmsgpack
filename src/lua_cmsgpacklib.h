@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 #define LUA_MSGPACK_LIBNAME "msgpack"
-LUAMOD_API int (luaopen_msgpack) (lua_State *L);
+LUAMOD_API int (luaopen_cmsgpack) (lua_State *L);
 
 /* }================================================================== */
 

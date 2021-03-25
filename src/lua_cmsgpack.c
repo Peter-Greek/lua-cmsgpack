@@ -1415,7 +1415,7 @@ static const luaL_Reg msgpack_lib[] = {
   { mp_nullptr, mp_nullptr }
 };
 
-LUAMOD_API int luaopen_msgpack (lua_State *L) {
+LUAMOD_API int luaopen_cmsgpack (lua_State *L) {
 #if LUA_VERSION_NUM == 501
   luaL_register(L, LUA_MSGPACK_LIBNAME, msgpack_lib);
 #else
