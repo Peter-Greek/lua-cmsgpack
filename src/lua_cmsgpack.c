@@ -395,7 +395,7 @@ lua_Integer mp_ext_type (lua_State *L, int idx) {
 
 int mp_encode_ext_lua_type (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id) {
   int i;
-  lua_checkstack(L, 5);
+  mp_checkstack(L, 5);
   /* If the object at the specified index has a metatable, check it for an encoder function */
   if (mp_encode_ext_metatable(L, ud, idx, ext_id))
     return 1;
