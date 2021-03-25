@@ -114,7 +114,7 @@ Example:
 function m.set_timestamp()
     m.extend({
         __ext = -1,
-        __pack = function(time, t)
+        __pack = function(time, _)
             local buffer = { }
             if (time.tv_sec >> 34) == 0 then
                 local data64 = (time.tv_nsec << 34) | time.tv_sec;
@@ -138,7 +138,7 @@ function m.set_timestamp()
             return table.concat(buffer),true
         end,
 
-        __unpack = function(s, t)
+        __unpack = function(s, _)
             local tv_sec, tv_nsec = 0, 0
             if s:len() == 4 then
                 tv_sec = string.unpack('>I4', s)
@@ -176,14 +176,15 @@ end
     a way adequate to your needs.
 --]]
 function m.set_function()
-    local function_ext = 7
     local loadstring = loadstring or load
-
     m.settype("function", {
+        __ext = 7,
+
         __pack = function(fct, t)
             assert(type(fct) == "function", "is function")
             return m.pack(assert(string.dump(fct), "function pack"))
         end,
+
         __unpack = function(s, t)
             local str = m.unpack(s)
             return assert(loadstring(str), "function unpack")
@@ -193,16 +194,12 @@ end
 
 --[[
     Reserves -7 as an extension type identifier for generic tables and their
-    packed metatables. To reserve a value between 0 and 127:
-        m.extend({
-            __ext = 42,
-            ...
-        })
-
-        m.settype("table", 42)
+    packed metatables.
 --]]
 function m.table_with_meta()
     m.settype("table", {
+        __ext = -7,
+
         __pack = function(tab, t)
             local ud = m.new()
             local custom = false
@@ -217,6 +214,7 @@ function m.table_with_meta()
             end
             return tostring(ud),custom
         end,
+
         __unpack = function(s, t)
             local tab,mt = m.unpack(s)
             return setmetatable(tab, mt)

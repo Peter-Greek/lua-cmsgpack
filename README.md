@@ -169,6 +169,8 @@ msgpack.extend_clear(ext_id1 [, ext_id2 ... [, ext_idN]])
 -- @NOTE: This feature is going to be reworked.
 -- @EXAMPLE:
 --  m.extend("function", {
+--      __ext = 42,
+--
 --      __pack = function(fct, t)
 --          assert(type(fct) == "function", "is function")
 --          return m.pack(assert(string.dump(fct), "function pack"))
@@ -179,6 +181,9 @@ msgpack.extend_clear(ext_id1 [, ext_id2 ... [, ext_idN]])
 --          return assert(loadstring(str), "function unpack")
 --      end,
 --  })
+--
+-- @EXAMPLE:
+--  m.extend("function", 42) -- '42' is an already registered extension identifier
 msgpack.settype(type_string [, ext_id])
 
 -- Get the encoder table associated to the name of a Lua type.
@@ -235,8 +240,8 @@ A CMake project that builds the shared library is included. See `cmake -LAH` or 
 1. An actual C API.
 1. `zone.c` uses `malloc/realloc` and does not support custom allocators. Introduce a zone implementation that uses lua_Alloc.
 1. A `clear` function for `msgpack.new`, allowing its internal string buffer to be reset.
-1. Scrap `LUA_MSGPACK_LUATYPE_EXT`. Its more flexible to allow `msgpack.settype("function", 42)` and remove the Lua-specific restrictions for extension identifiers.
 1. `pack`: experiment with an additional table parameter that can be used to cache already processed tables. The current solution relies on maximum recursive depth while being incredibly defensive around the state/size of the Lua stack.
+1. Replace 'next' with something more efficient, e.g, a `msgpack.iterator` persistent userdata. The current iterator approach is incredibly inefficient as its continuously creating and destroying msgpack_zones and whatever Lua overhead to ensure no leakage.
 
 ## Sources & Acknowledgments:
 1. [msgpack-c](https://github.com/msgpack/msgpack-c): msgpack spec implementation;

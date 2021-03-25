@@ -286,7 +286,7 @@ static int lua_mpbuffer_iappend (void *data, const char *s, size_t len) {
 #if defined(LUAI_FUNC)
   #define LUA_MP_API LUAI_FUNC
 #else
-	#define LUA_MP_API static
+	#define LUA_MP_API extern
 #endif
 
 #define MP_OPEN                0x01  /* Userdata data resources are alive. */
@@ -344,10 +344,9 @@ static int lua_mpbuffer_iappend (void *data, const char *s, size_t len) {
 #define LUA_MSGPACK_EXT_RESERVED(i) 0
 
 /*
-** msgpack-c reserves -1 for timestamps. Therefore, LUA_TNIL would be mapped to
-** -2, LUA_TFUNCTION -8, etc.
+** Convert a Lua type ID to an extension identifier outside of int8_t
 */
-#define LUA_MSGPACK_LUATYPE_EXT(x) mp_cast(int8_t, (-(x + 2)))
+#define LUA_MSGPACK_LUA_TYPE(x) (x + 1000)
 
 /* A value not within LUA_MSGPACK_EXT_VALID */
 #define EXT_INVALID -1024
@@ -448,7 +447,14 @@ LUA_MP_API lua_Integer mp_ext_type (lua_State *L, int idx);
 ** @TODO: Missing 'nesting' value: with a poorly defined extension encoder,
 **  cycles can exist and the library cannot be defensive about.
 */
-LUA_MP_API int mp_encode_ext_lua_type (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id);
+LUA_MP_API int mp_encode_ext_type (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id);
+
+/*
+** Attempt to pack the value at the specified Lua index with an already known
+** type. This entails determining if a custom extension identifier has been
+** associated with the Lua type (e.g., a function that uses dump/load).
+*/
+LUA_MP_API int mp_encode_lua_type (lua_State *L, lua_msgpack *ud, int idx, int type);
 
 /*
 ** Return true if the table at the specified stack index can be encoded as an
@@ -638,12 +644,12 @@ static LUA_MSGPACK_INLINE void lua_pack_table (lua_State *L, lua_msgpack *ud, in
 static LUA_MSGPACK_INLINE void lua_pack_extended_table (lua_State *L, lua_msgpack *ud, int idx, int level) {
   lua_Integer type = 0;
   if ((type = mp_ext_type(L, idx)) != EXT_INVALID) {
-    if (!mp_encode_ext_lua_type(L, ud, idx, mp_cast(int8_t, type))) {
+    if (!mp_encode_ext_type(L, ud, idx, mp_cast(int8_t, type))) {
       luaL_error(L, "msgpack extension type: not registered!");
       return;
     }
   }
-  else if (mp_encode_ext_lua_type(L, ud, idx, LUA_MSGPACK_LUATYPE_EXT(LUA_TTABLE))) {
+  else if (mp_encode_lua_type(L, ud, idx, LUA_TTABLE)) {
     /* do nothing; table has been packed with a custom extension */
   }
   else {
@@ -686,7 +692,7 @@ static LUA_MSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack
   const int t = lua_type(L, idx);
   lua_Integer type = 0;
   if ((type = mp_ext_type(L, idx)) != EXT_INVALID) {
-    if (!mp_encode_ext_lua_type(L, ud, idx, mp_cast(int8_t, type))) {
+    if (!mp_encode_ext_type(L, ud, idx, mp_cast(int8_t, type))) {
       if ((ud->flags & MP_IGNORE_INVALID)) {
         msgpack_pack_nil(&ud->u.packed.packer);
         return;
@@ -696,7 +702,7 @@ static LUA_MSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack
       return;
     }
   }
-  else if (mp_encode_ext_lua_type(L, ud, idx, LUA_MSGPACK_LUATYPE_EXT(t))) {
+  else if (mp_encode_lua_type(L, ud, idx, t)) {
     /* do nothing */
   }
   else if ((ud->flags & MP_IGNORE_INVALID))
@@ -745,7 +751,7 @@ static LUA_MSGPACK_INLINE void lua_pack_any (lua_State *L, lua_msgpack *ud, int 
       **       API function lua_msgpack_type_extension( ..., lua_CFunction,
       **       lua_CFunction) that handles the serialization of C pointers.
       */
-      if (!mp_encode_ext_lua_type(L, ud, idx, LUA_MSGPACK_LUATYPE_EXT(t))) {
+      if (!mp_encode_lua_type(L, ud, idx, t)) {
         msgpack_packer *pk = &(ud->u.packed.packer);
         const void *userdata = lua_touserdata(L, idx);
 #if defined(LUA_MSGPACK_BIT32)
