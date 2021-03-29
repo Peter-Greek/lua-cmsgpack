@@ -6,7 +6,7 @@ The exported API is broken down into five categories: **Configuration**, **Packi
 
 ##### Configuration
 ```lua
--- Return the current value of the global packing/unpacking option.
+-- Return the value of a global packing/unpacking option.
 --
 -- Default Flags:
 -- 'empty_table_as_array' + 'unsigned' + 'without_hole + 'double'
@@ -232,9 +232,9 @@ A CMake project that builds the shared library is included. See `cmake -LAH` or 
 - **MP\_ZONE\_CHUNK\_SIZE**: Default chunk msgpack_zone chunk size.
 
 ## Developer Notes
-1. Large values, e.g., uint64_t (`0xcf`) or float64 (`0xcb`), may not be able to be represented in Lua (especially when compiled for i386 or C89).
-1. For Lua 5.1, Lua 5.2, and LuaJIT, all unpacked integers are type-casted to floating point types (see the C and/or C++ standard for type-casting rules). A `LUA_TNUMBER` will be packed as an integer type if the value can be faithfully represented as an integer, i.e., `(lua_Number)floor(value) = value`.
-1. For Lua 5.3 and Lua 5.4 a `LUA_TNUMBER` value will be packed as an integer if `lua_isinteger` returns true for the given value. For default [PUC-Rio Lua](https://github.com/lua/lua) this requires the value to have an explicit integer type.
+1. Large values, e.g., uint64_t (`0xcf`) or float64 (`0xcb`), may not be representable in Lua; even more-so when compiled for C89 or i386 systems. Instead, the resulting numbers may be floating-point approximations.
+1. For Lua 5.1, Lua 5.2, and LuaJIT, all unpacked integers are type-casted to floating point (see the C and/or C++ standard for type-casting rules). In addition, a `LUA_TNUMBER` will be packed as an integer type if the value can be faithfully represented as an integer, i.e., `(lua_Number)floor(value) = value`.
+1. For Lua 5.3 and Lua 5.4 a `LUA_TNUMBER` value will be packed as an integer if `lua_isinteger` returns true for the given value. For default [Lua](https://github.com/lua/lua) builds, this requires the value to be an explicit integer type.
 
 ### TODO
 1. An actual C API.
