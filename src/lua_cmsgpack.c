@@ -1310,7 +1310,7 @@ static const luaL_Reg msgpack_lib[] = {
   { "extend_clear", mp_clear_extension },
   { "gettype", mp_get_type_extension },
   { "settype", mp_set_type_extension },
-  { "sentinel", mp_null }, { "null", mp_null }, /* compatibility alias */
+  { "sentinel", mp_nullptr }, { "null", mp_nullptr }, /* compatibility alias */
   { mp_nullptr, mp_nullptr }
 };
 
@@ -1356,6 +1356,8 @@ LUAMOD_API int luaopen_msgpack (lua_State *L) {
   /* Default configuration flags */
   mp_setregi(L, LUA_MSGPACK_REG_OPTIONS, MP_DEFAULT);
 
+  mp_null(L); lua_setfield(L, -2, "null");
+  mp_null(L); lua_setfield(L, -2, "sentinel");
   lua_pushliteral(L, LUA_MSGPACK_NAME); lua_setfield(L, -2, "_NAME");
   lua_pushliteral(L, LUA_MSGPACK_VERSION); lua_setfield(L, -2, "_VERSION");
   lua_pushliteral(L, LUA_MSGPACK_COPYRIGHT); lua_setfield(L, -2, "_COPYRIGHT");

@@ -51,10 +51,11 @@ value = msgpack.getoption(option)
 -- Set a global packing/unpacking option; see getoption.
 msgpack.setoption(option, value)
 
--- Returns a sentinel value used to represent "null" arrays. Lua 5.1 and LuaJIT
--- require invoking the function while other Lua versions treat sentinel as a
--- 'light' C function, where msgpack.sentinel == msgpack.sentinel().
-null = msgpack.null() -- or msgpack.sentinel()
+-- A sentinel value used to represent an explicit "nil" value when packing or
+-- (optionally) unpacking. This is implemented with a 'light userdata' in Lua5.1/LuaJIT,
+-- and a 'light' C function for Lua 5.2, Lua 5.3, and Lua 5.4 (thereby allowing
+-- msgpack.null == msgpack.null()). This feature has no equivalent in MessagePack.lua
+null = msgpack.null -- or msgpack.sentinel
 ```
 
 ##### Packing
@@ -240,6 +241,7 @@ A CMake project that builds the shared library is included. See `cmake -LAH` or 
 1. An actual C API.
 1. `zone.c` uses `malloc/realloc` and does not support custom allocators. Introduce a zone implementation that uses lua_Alloc.
 1. A `clear` function for `msgpack.new`, allowing its internal string buffer to be reset.
+1. Operations on the `msgpack.new` userdata are not all-or-nothing. If an error happens during a packing operation, the userdata will be left in an invalid state. This edge-case should be handled more gracefully, e.g., generating errors stating the userdata has been left in an invalid state on subsequent operations.
 1. `pack`: experiment with an additional table parameter that can be used to cache already processed tables. The current solution relies on maximum recursive depth while being incredibly defensive around the state/size of the Lua stack.
 1. Replace 'next' with something more efficient, e.g, a `msgpack.iterator` persistent userdata. The current iterator approach is incredibly inefficient as its continuously creating and destroying msgpack_zones and whatever Lua overhead to ensure no leakage.
 

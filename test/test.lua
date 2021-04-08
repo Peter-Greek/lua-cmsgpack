@@ -555,16 +555,12 @@ msgpack.setoption("sentinel", false)
 test_unpack("nullkey", "82c001a2696402", { id = 2, })
 
 --[[
-    Lua51/LuaJIT requires invoking the function; other Lua versions treat
-    sentinel as a 'light' C function, where msgpack.sentinel == msgpack.sentinel()
+    msgpack.null is implemented as a 'light' C function for Lua 52, Lua 53, and
+    Lua 54, allowing msgpack.null == msgpack.null(). For previous versions of
+    Lua (Lua51/LuaJIT) the field is a light userdata.
 --]]
 msgpack.setoption("sentinel", true)
-if msgpack.sentinel == msgpack.sentinel() then
-    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel] = 1, })
-    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel()] = 1, })
-else
-    test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel()] = 1, })
-end
+test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel] = 1, })
 
 -- Final report
 print()
