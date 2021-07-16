@@ -899,6 +899,24 @@ LUALIB_API int mp_pack (lua_State *L) {
   return 1;
 }
 
+LUALIB_API int mp_pack_args (lua_State *L) {
+  int i, top = lua_gettop(L);
+
+  lua_msgpack *ud = mp_nullptr;
+  if ((ud = lua_msgpack_create(L, MP_PACKING)) == mp_nullptr)
+    return luaL_error(L, "could not allocate packer UD");
+
+  msgpack_pack_array(&ud->u.packed.packer, mp_cast(size_t, top));
+  for (i = 1; i <= top; ++i) {
+    lua_msgpack_encode(L, ud, i, 0);
+  }
+
+  lua_pushlstring(L, ud->u.packed.buffer.b, ud->u.packed.buffer.n);
+  lua_msgpack_destroy(L, top + 1, ud);
+  /* lua_remove(L, top + 1); let moveresults remove lua_msgpack */
+  return 1;
+}
+
 static int mp_unpacker (lua_State *L, int compat_api, int include_offset) {
   int top = 0, count = 0, limit = 0;
   size_t len = 0, position = 0, offset = 0, end_position = 0;
@@ -1289,6 +1307,7 @@ static int mp_issafe (lua_State *L) {
 
 static const luaL_Reg msgpack_lib[] = {
   { "pack", mp_pack },
+  { "pack_args", mp_pack_args },
 #if defined(LUA_MSGPACK_COMPAT)
   { "unpack", mp_unpack_compat },
   { "unpack2", mp_unpack },

@@ -7,7 +7,7 @@
 #include <lua.h>
 
 #define LUA_MSGPACK_NAME "luamsgpack-c"
-#define LUA_MSGPACK_VERSION "luamsgpack-c 1.2.2"
+#define LUA_MSGPACK_VERSION "luamsgpack-c 1.2.3"
 #define LUA_MSGPACK_COPYRIGHT "Copyright (C) 2021, Gottfried Leibniz"
 #define LUA_MSGPACK_DESCRIPTION "msgpack-c bindings for Lua"
 
@@ -47,6 +47,17 @@ LUAMOD_API int (luaopen_msgpack) (lua_State *L);
 **    of precision.
 */
 LUALIB_API int mp_pack (lua_State *L);
+
+/*
+** pack_args(...): receives any number of arguments and packs their values as an
+** array; ensuring a subsequent table.unpack(msgpack.unpack()) can be passed
+** directly to a Lua function call. Ensuring nil values are properly handled.
+**
+** By default, tables, e.g., {...}, are packed with the 'without_hole' flag,
+** meaning arrays with nil values are to be encoded as maps. This conflicts with
+** parameter sequences.
+*/
+LUALIB_API int mp_pack_args (lua_State *L);
 
 /*
 ** unpack(encoded_string [, offset [, limit [, end_position]]]): Unpack all
