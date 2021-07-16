@@ -256,7 +256,7 @@ ENDIF()
 ENABLE_LANGUAGE(CXX)
 
 SET(MSGPACK_DIR "${CMAKE_BINARY_DIR}/msgpack" CACHE PATH "msgpack directory" FORCE)
-SET(MSGPACK_INSTALL_DIR "${MSGPACK_DIR}/install" CACHE PATH "msgpack installation directory" FORCE)
+SET(MSGPACK_INSTALL_DIR "${MSGPACK_DIR}/src/msgpack/" CACHE PATH "msgpack installation directory" FORCE)
 IF (LUA_MSGPACK_BIT32)
   SET(MSGPACK_C_32BIT "-DMSGPACK_32BIT=ON")
 ELSE ()
@@ -274,8 +274,9 @@ ExternalProject_Add(msgpack
   TEST_COMMAND ""
   UPDATE_COMMAND ""
   PATCH_COMMAND ""
+  INSTALL_COMMAND ""
   EXCLUDE_FROM_ALL TRUE
-  CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${MSGPACK_INSTALL_DIR}
+  CMAKE_ARGS +=
     -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true
     -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
     -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
@@ -290,9 +291,11 @@ ExternalProject_Add(msgpack
 
 SET(MSGPACK_INCLUDE_DIR ${MSGPACK_INSTALL_DIR}/include CACHE PATH "msgpack include directory" FORCE)
 IF( WIN32 )
-  SET(MSGPACK_LIBRARY ${MSGPACK_INSTALL_DIR}/lib/msgpackc.lib CACHE FILEPATH "msgpack library" FORCE)
+  # MSVC hack
+  SET(MSGPACK_LIB_PATH "${MSGPACK_DIR}/src/msgpack/${CMAKE_BUILD_TYPE}/msgpackc.lib")
+  SET(MSGPACK_LIBRARY ${MSGPACK_LIB_PATH} CACHE FILEPATH "msgpack library" FORCE)
 ELSE()
-  SET(MSGPACK_LIBRARY ${MSGPACK_INSTALL_DIR}/lib/libmsgpackc.a CACHE FILEPATH "msgpack library" FORCE)
+  SET(MSGPACK_LIBRARY ${MSGPACK_DIR}/src/msgpack/libmsgpackc.a CACHE FILEPATH "msgpack library" FORCE)
 ENDIF()
 
 ################################################################################
