@@ -7,7 +7,7 @@
 #include <lua.h>
 
 #define LUA_MSGPACK_NAME "luamsgpack-c"
-#define LUA_MSGPACK_VERSION "luamsgpack-c 1.2.1"
+#define LUA_MSGPACK_VERSION "luamsgpack-c 1.2.2"
 #define LUA_MSGPACK_COPYRIGHT "Copyright (C) 2021, Gottfried Leibniz"
 #define LUA_MSGPACK_DESCRIPTION "msgpack-c bindings for Lua"
 
