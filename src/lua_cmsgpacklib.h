@@ -51,11 +51,12 @@ LUALIB_API int mp_pack (lua_State *L);
 /*
 ** pack_args(...): receives any number of arguments and packs their values as an
 ** array; ensuring a subsequent table.unpack(msgpack.unpack()) can be passed
-** directly to a Lua function call. Ensuring nil values are properly handled.
+** directly to a Lua function call with proper handling of intermediate nil
+** values.
 **
-** By default, tables, e.g., {...}, are packed with the 'without_hole' flag,
+** By default tables, e.g., {...}, are packed with the 'without_hole' flag,
 ** meaning arrays with nil values are to be encoded as maps. This conflicts with
-** parameter sequences.
+** function parameters and required sequences.
 */
 LUALIB_API int mp_pack_args (lua_State *L);
 
