@@ -570,6 +570,50 @@ test_unpack("nullkey", "82c001a2696402", { id = 2, })
 --]]
 msgpack.setoption("sentinel", true)
 test_unpack("nullsentinel", "82c001a2696402", { id = 2, [msgpack.sentinel] = 1, })
+msgpack.setoption("sentinel", false)
+
+--[[
+    Packing Argument Sequences
+
+    use_sentinel: Enable "sentinel" to ensure trailing nil values are properly
+    handled.
+--]]
+local function varargs(use_sentinel, ...)
+    msgpack.setoption("sentinel", use_sentinel)
+
+    local t = { }
+    local t_len = select("#", ...)
+    for i=1,t_len do
+        t[i] = select(i, ...)
+        if t[i] == nil and use_sentinel then
+            t[i] = msgpack.sentinel
+        end
+    end
+
+    local t2 = msgpack.unpack(msgpack.pack_args(...))
+    if t_len == #t2 then
+        if compare_objects(t, t2) then
+            passed = passed + 1
+        else
+            print("vaERROR:", ...)
+            failed = failed + 1
+        end
+    else
+        print(("vaERROR: Inconsistent Lengths: Args<%d> != Encoding<%d>"):format(t_len, #t2))
+        failed = failed + 1
+    end
+
+    msgpack.setoption("sentinel", false)
+end
+
+print("testing pack_args...")
+varargs(false)
+varargs(false, 1, nil, nil, 4, "4")
+varargs(true, 1, "2", 3, nil, nil)
+varargs(false, 1, 2, {}, nil, 4, 5, 6, nil, 7, 8, 9)
+varargs(false, 1, 2, 3, nil, { 1, { x = 1, y = 2, z = 3 } }, nil, "x")
+varargs(true, 1, 2, 3, nil, { 1, { x = 1, y = 2, z = 3 } }, nil, "x", nil)
+varargs(false, 'testing', 'mymessage', nil, 'foo')
 
 -- Final report
 print()

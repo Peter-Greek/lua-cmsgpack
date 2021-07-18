@@ -434,8 +434,7 @@ LUA_MP_API void lua_msgpack_encode (lua_State *L, lua_msgpack *ud, int idx, int 
 **    and error, with its message stored in "error".
 */
 LUA_MP_API int lua_msgpack_decode (lua_State *L, lua_msgpack *ud, const char *s,
-                                          size_t len, size_t *offset, int limit,
-                           const char **error, msgpack_unpack_return *err_code);
+  size_t len, size_t *offset, int limit, const char **error, msgpack_unpack_return *err_code);
 
 /* If the element on top of the stack is nil, replace it with its reference */
 LUA_MP_API void mp_replace_null (lua_State *L);
@@ -468,14 +467,14 @@ LUA_MP_API lua_Integer mp_ext_type (lua_State *L, int idx);
 ** @TODO: Missing 'nesting' value: with a poorly defined extension encoder,
 **  cycles can exist and the library cannot be defensive about.
 */
-LUA_MP_API int mp_encode_ext_type (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id);
+LUA_MP_API int mp_encode_registered_ext_type (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id);
 
 /*
 ** Attempt to pack the value at the specified Lua index with an already known
 ** type. This entails determining if a custom extension identifier has been
 ** associated with the Lua type (e.g., a function that uses dump/load).
 */
-LUA_MP_API int mp_encode_lua_type (lua_State *L, lua_msgpack *ud, int idx, int type);
+LUA_MP_API int mp_encode_registered_lua_type (lua_State *L, lua_msgpack *ud, int idx, int type);
 
 /*
 ** Parse the vector at the specified stack index, storing its contents in 'v',
@@ -505,9 +504,7 @@ LUA_MP_API int mp_table_is_an_array (lua_State *L, int idx, lua_Integer flags, s
 */
 LUA_MP_API void mp_encode_lua_table_as_array (lua_State *L, lua_msgpack *ud, int idx, int level, size_t array_length);
 
-/*
-** Encode the table at the specified stack index as a <key, value> array.
-*/
+/* Encode the table at the specified stack index as a <key, value> array. */
 LUA_MP_API void mp_encode_lua_table_as_map (lua_State *L, lua_msgpack *ud, int idx, int level);
 
 #define lua_msgpack_op(NAME, PACKER)                                    \
@@ -516,22 +513,22 @@ LUA_MP_API void mp_encode_lua_table_as_map (lua_State *L, lua_msgpack *ud, int i
     PACKER(&(ud->u.packed.packer));                                     \
   }
 
-#define lua_msgpack_number_func(NAME, PACKER, TYPE)                            \
-  static LUA_MSGPACK_INLINE void(NAME)(lua_State *L, lua_msgpack *ud, int i) { \
-    PACKER(&(ud->u.packed.packer), mp_cast(TYPE, lua_tonumber(L, i)));         \
+#define lua_msgpack_number_func(NAME, PACKER, TYPE)                              \
+  static LUA_MSGPACK_INLINE void(NAME)(lua_State *L, lua_msgpack *ud, int idx) { \
+    PACKER(&(ud->u.packed.packer), mp_cast(TYPE, lua_tonumber(L, idx)));         \
   }
 
-#define lua_msgpack_int_func(NAME, PACKER, TYPE)                               \
-  static LUA_MSGPACK_INLINE void(NAME)(lua_State *L, lua_msgpack *ud, int i) { \
-    PACKER(&(ud->u.packed.packer), mp_cast(TYPE, lua_tointeger(L, i)));        \
+#define lua_msgpack_int_func(NAME, PACKER, TYPE)                                 \
+  static LUA_MSGPACK_INLINE void(NAME)(lua_State *L, lua_msgpack *ud, int idx) { \
+    PACKER(&(ud->u.packed.packer), mp_cast(TYPE, lua_tointeger(L, idx)));        \
   }
 
-#define lua_msgpack_str_func(NAME, LEN, BODY)                                  \
-  static LUA_MSGPACK_INLINE void(NAME)(lua_State *L, lua_msgpack *ud, int i) { \
-    size_t len = 0;                                                            \
-    const char *s = lua_tolstring(L, i, &len);                                 \
-    LEN(&(ud->u.packed.packer), len);                                          \
-    BODY(&(ud->u.packed.packer), s, len);                                      \
+#define lua_msgpack_str_func(NAME, LEN, BODY)                                    \
+  static LUA_MSGPACK_INLINE void(NAME)(lua_State *L, lua_msgpack *ud, int idx) { \
+    size_t len = 0;                                                              \
+    const char *s = lua_tolstring(L, idx, &len);                                 \
+    LEN(&(ud->u.packed.packer), len);                                            \
+    BODY(&(ud->u.packed.packer), s, len);                                        \
   }
 
 lua_msgpack_int_func(lua_pack_char, msgpack_pack_char, char)
@@ -671,13 +668,18 @@ static LUA_MSGPACK_INLINE void lua_pack_table (lua_State *L, lua_msgpack *ud, in
 
 static LUA_MSGPACK_INLINE void lua_pack_extended_table (lua_State *L, lua_msgpack *ud, int idx, int level) {
   lua_Integer type = 0;
+  /* The table contains an extension identifier field in its metatable, encode it. */
   if ((type = mp_ext_type(L, idx)) != EXT_INVALID) {
-    if (!mp_encode_ext_type(L, ud, idx, mp_cast(int8_t, type))) {
+    if (!mp_encode_registered_ext_type(L, ud, idx, mp_cast(int8_t, type))) {
       luaL_error(L, "msgpack extension type: not registered!");
       return;
     }
   }
-  else if (mp_encode_lua_type(L, ud, idx, LUA_TTABLE)) {
+  /*
+  ** The table does not contain an extension identifier metafield. See if the
+  ** 'table' type has its own general encoder.
+  */
+  else if (mp_encode_registered_lua_type(L, ud, idx, LUA_TTABLE)) {
     /* do nothing; table has been packed with a custom extension */
   }
   else {
@@ -763,7 +765,7 @@ static LUA_MSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack
   const int t = lua_type(L, idx);
   lua_Integer type = 0;
   if ((type = mp_ext_type(L, idx)) != EXT_INVALID) {
-    if (!mp_encode_ext_type(L, ud, idx, mp_cast(int8_t, type))) {
+    if (!mp_encode_registered_ext_type(L, ud, idx, mp_cast(int8_t, type))) {
       if ((ud->flags & MP_IGNORE_INVALID)) {
         msgpack_pack_nil(&ud->u.packed.packer);
         return;
@@ -773,7 +775,7 @@ static LUA_MSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack
       return;
     }
   }
-  else if (mp_encode_lua_type(L, ud, idx, t)) {
+  else if (mp_encode_registered_lua_type(L, ud, idx, t)) {
     /* do nothing */
   }
   else if ((ud->flags & MP_IGNORE_INVALID))
@@ -836,7 +838,7 @@ static LUA_MSGPACK_INLINE void lua_pack_any (lua_State *L, lua_msgpack *ud, int 
       **       API function lua_msgpack_type_extension( ..., lua_CFunction,
       **       lua_CFunction) that handles the serialization of C pointers.
       */
-      if (!mp_encode_lua_type(L, ud, idx, t)) {
+      if (!mp_encode_registered_lua_type(L, ud, idx, t)) {
         msgpack_packer *pk = &(ud->u.packed.packer);
         const void *userdata = lua_touserdata(L, idx);
 #if defined(LUA_MSGPACK_BIT32)

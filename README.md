@@ -65,6 +65,16 @@ null = msgpack.null -- or msgpack.sentinel
 -- Receives any number of arguments and pack their values.
 packedString = msgpack.pack(...)
 
+-- pack_args(...): receives any number of arguments and packs their values as an
+-- array; ensuring a subsequent table.unpack(msgpack.unpack()) can be passed
+-- directly to a Lua function call with proper handling of intermediate nil
+-- values.
+--
+-- By default tables, e.g., {...}, are packed with the 'without_hole' flag,
+-- meaning arrays with nil values are to be encoded as maps. This conflicts with
+-- function parameters and required sequences.
+packedArray = msgpack.pack_args(...)
+
 -- Returns a userdata that maintains a persistent msgpack packing state. The
 -- userdata has the following metamethods
 --
@@ -235,13 +245,13 @@ A CMake project that builds the shared library is included. See `cmake -LAH` or 
 - **MP\_ZONE\_CHUNK\_SIZE**: Default chunk msgpack_zone chunk size.
 
 ## Developer Notes
-1. Large values, e.g., uint64_t (`0xcf`) or float64 (`0xcb`), may not be representable in Lua; even more-so when compiled for C89 or i386 systems. Instead, the resulting numbers may be floating-point approximations.
-1. For Lua 5.1, Lua 5.2, and LuaJIT, all unpacked integers are type-casted to floating point (see the C and/or C++ standard for type-casting rules). In addition, a `LUA_TNUMBER` will be packed as an integer type if the value can be faithfully represented as an integer, i.e., `(lua_Number)floor(value) = value`.
-1. For Lua 5.3 and Lua 5.4 a `LUA_TNUMBER` value will be packed as an integer if `lua_isinteger` returns true for the given value. For default [Lua](https://github.com/lua/lua) builds, this requires the value to be an explicit integer type.
+1. Large values, e.g., uint64_t (`0xcf`) or float64 (`0xcb`), may not be representable in Lua (especially when compiled for C89 or i386). Instead, the resulting values may be floating-point approximations.
+1. For Lua 5.1, Lua 5.2, and LuaJIT, all unpacked integers are type-casted to lua_Number (see the C and/or C++ standard for type-casting rules). In addition, a lua_Number will be packed as an integer type if that value can be faithfully represented as an integer, i.e., `(lua_Number)floor(value) = value`.
+1. For Lua 5.3 and Lua 5.4 a `LUA_TNUMBER` value will be packed as an integer if [lua_isinteger](https://www.lua.org/manual/5.4/manual.html#lua_isinteger) returns true for the given value. For default [Lua](https://github.com/lua/lua) builds this requires an explicit integer type/variant.
 
 ### TODO
-1. An actual C API.
-1. `zone.c` uses `malloc/realloc` and does not support custom allocators. Introduce a zone implementation that uses lua_Alloc.
+1. Proper C API.
+1. Introduce a zone implementation that uses the [Lua allocator](https://www.lua.org/manual/5.4/manual.html#lua_Alloc): [zone.c](https://github.com/msgpack/msgpack-c/blob/c_master/src/zone.c) uses `malloc/realloc` and does not support custom allocators.
 1. A `clear` function for `msgpack.new`, allowing its internal string buffer to be reset.
 1. Operations on the `msgpack.new` userdata are not all-or-nothing. If an error happens during a packing operation, the userdata will be left in an invalid state. This edge-case should be handled more gracefully, e.g., generating errors stating the userdata has been left in an invalid state on subsequent operations.
 1. `pack`: experiment with an additional table parameter that can be used to cache already processed tables. The current solution relies on maximum recursive depth while being incredibly defensive around the state/size of the Lua stack.
