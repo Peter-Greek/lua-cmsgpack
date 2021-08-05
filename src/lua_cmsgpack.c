@@ -336,11 +336,7 @@ static LUA_MSGPACK_INLINE lua_Integer mp_checktype (lua_State *L, lua_Integer ty
   return type;
 }
 
-/*
-** If the object at the specified index has a metatable, attempt to use the
-** encoders specified.
-*/
-static int mp_encode_ext_metatable (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id) {
+int mp_encode_ext_metatable (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id, int8_t has_ext) {
   /* Attempt to use packer within the objects metatable */
   const int type = luaL_getmetafield(L, idx, LUA_MSGPACK_META_ENCODE);
   if (type == mp_nil_metafield)
@@ -362,10 +358,14 @@ static int mp_encode_ext_metatable (lua_State *L, lua_msgpack *ud, int idx, int8
     const char *s = lua_tolstring(L, -2, &len);
     if (lua_toboolean(L, -1))
       lua_mpbuffer_append(L, &ud->u.packed.buffer, s, len);
-    else {
+    else if (has_ext) {
       msgpack_packer *pk = &(ud->u.packed.packer);
       msgpack_pack_ext(pk, len, ext_id);
       msgpack_pack_ext_body(pk, s, len);
+    }
+    else {
+      lua_pop(L, 2);
+      return luaL_error(L, "unregistered extension identifier must return <encoding, true>");
     }
     lua_pop(L, 2);  /* metafield & encoded values */
     return 1;
@@ -398,7 +398,7 @@ int mp_encode_registered_ext_type (lua_State *L, lua_msgpack *ud, int idx, int8_
   mp_checkstack(L, 5);
 
   /* If the object at the specified index has a metatable, check for an encoder function */
-  if (mp_encode_ext_metatable(L, ud, idx, ext_id))
+  if (mp_encode_ext_metatable(L, ud, idx, ext_id, 1))
     return 1;
 
   /* metatable lookup failed, use extension registry table */

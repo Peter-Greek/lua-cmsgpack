@@ -443,6 +443,15 @@ LUA_MP_API int mp_is_null (lua_State *L, int idx);
 LUA_MP_API lua_Integer mp_ext_type (lua_State *L, int idx);
 
 /*
+** If the object at the specified index has a metatable, check for an encoder
+** function and use it.
+**
+** has_ext - A boolean indicating if 'ext_id' is a valid identifier. When false
+**  the custom encoder must return <encoding, true>.
+*/
+LUA_MP_API int mp_encode_ext_metatable (lua_State *L, lua_msgpack *ud, int idx, int8_t ext_id, int8_t has_ext);
+
+/*
 ** Attempt to pack the data at the specified stack index, using the provided
 ** extension-type identifier (ext_id). Returning non-zero on success; zero on
 ** failure (e.g., extension type not registered).
@@ -651,10 +660,11 @@ static LUA_MSGPACK_INLINE void lua_pack_extended_table (lua_State *L, lua_msgpac
       return;
     }
   }
-  /*
-  ** The table does not contain an extension identifier metafield. See if the
-  ** 'table' type has its own general encoder.
-  */
+  /* Check metatable for a non-extension encoder function */
+  else if (mp_encode_ext_metatable(L, ud, idx, 0, 0)) {
+    /* do nothing; table has been packed with custom packer */
+  }
+  /* Check if the 'table' type is associated to an extension identifier. */
   else if (mp_encode_registered_lua_type(L, ud, idx, LUA_TTABLE)) {
     /* do nothing; table has been packed with a custom extension */
   }
@@ -708,8 +718,13 @@ static LUA_MSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack
       return;
     }
   }
+  /* Check the objects metatable for a non-extension encoder function */
+  else if (mp_encode_ext_metatable(L, ud, idx, 0, 0)) {
+    /* do nothing; type has been packed with custom packer */
+  }
+  /* Check for <Lua type, extension> encoder associations */
   else if (mp_encode_registered_lua_type(L, ud, idx, t)) {
-    /* do nothing */
+    /* do nothing; type has been packed as an extension */
   }
   else if ((ud->flags & MP_IGNORE_INVALID))
     msgpack_pack_nil(&ud->u.packed.packer);
