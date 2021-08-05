@@ -225,6 +225,10 @@ static LUA_MSGPACK_INLINE char *lua_mpbuffer_prepare (lua_State *L, lua_mpbuffer
 
     B->b = mp_pcast(char *, lua_mpbuffer_realloc(L, B->b, B->size, newsize));
     B->size = newsize;
+    if (B->b == mp_nullptr) {
+      luaL_error(L, "unable to allocate buffer");
+      return mp_nullptr;
+    }
   }
   return B->b + B->n;
 }
