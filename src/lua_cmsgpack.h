@@ -18,7 +18,7 @@ extern "C++" {
 #include <luaconf.h>
 #include <lauxlib.h>
 #if LUA_VERSION_NUM == 504  /* gritLua 5.4 */
-  #include <lgrit_lib.h>
+//  #include <lgrit_lib.h>
 #elif LUA_VERSION_NUM == 503  /* cfxLua 5.3 */
   #include <lobject.h>
   #define LUA_VEC_TYPE LUA_FLOAT_FLOAT
@@ -494,7 +494,7 @@ LUA_MP_API int mp_encode_registered_lua_type (lua_State *L, lua_msgpack *ud, int
 ** and return the vector type extension: MSGPACK_EXT_VECTOR* and
 ** MSGPACK_EXT_QUATERION.
 */
-LUA_MP_API int mp_parse_vector (lua_State *L, int idx, lua_Float4 *v);
+//LUA_MP_API int mp_parse_vector (lua_State *L, int idx, lua_Float4 *v);
 
 /*
 ** Return true if the table at the specified stack index can be encoded as an
@@ -737,43 +737,43 @@ static LUA_MSGPACK_INLINE void lua_pack_parse_string (lua_State *L, lua_msgpack 
 ** component: see LUAVEC_NUMBER. For the time being, msgpack only operates on
 ** floats.
 */
-static void lua_pack_vector (lua_State *L, lua_msgpack *ud, int idx) {
-  union { lua_VecF f; lua_VecI i; } mem;  /* Following msgpack/pack_template.h */
-  unsigned char buf[4 * sizeof(lua_VecF)];
-  msgpack_packer *pk = &(ud->u.packed.packer);
-
-  lua_Float4 v;
-  int type = 0, size = 0;
-  switch ((type = mp_parse_vector(L, idx, &v))) {
-    case MSGPACK_EXT_VECTOR2: {
-      size = 2;
-      _msgpack_storevec(&buf[0 * sizeof(lua_VecF)], (mem.f = v.x, mem.i));
-      _msgpack_storevec(&buf[1 * sizeof(lua_VecF)], (mem.f = v.y, mem.i));
-      break;
-    }
-    case MSGPACK_EXT_VECTOR3: {
-      size = 3;
-      _msgpack_storevec(&buf[0 * sizeof(lua_VecF)], (mem.f = v.x, mem.i));
-      _msgpack_storevec(&buf[1 * sizeof(lua_VecF)], (mem.f = v.y, mem.i));
-      _msgpack_storevec(&buf[2 * sizeof(lua_VecF)], (mem.f = v.z, mem.i));
-      break;
-    }
-    case MSGPACK_EXT_VECTOR4:
-    case MSGPACK_EXT_QUATERNION: {
-      size = 4;
-      _msgpack_storevec(&buf[0 * sizeof(lua_VecF)], (mem.f = v.x, mem.i));
-      _msgpack_storevec(&buf[1 * sizeof(lua_VecF)], (mem.f = v.y, mem.i));
-      _msgpack_storevec(&buf[2 * sizeof(lua_VecF)], (mem.f = v.z, mem.i));
-      _msgpack_storevec(&buf[3 * sizeof(lua_VecF)], (mem.f = v.w, mem.i));
-      break;
-    }
-    default:
-      luaL_error(L, "invalid vector type");
-      break;
-  }
-  msgpack_pack_ext(pk, size * sizeof(lua_VecF), (int8_t)type);
-  msgpack_pack_ext_body(pk, (const void *)buf, size * sizeof(lua_VecF));
-}
+//static void lua_pack_vector (lua_State *L, lua_msgpack *ud, int idx) {
+//  union { lua_VecF f; lua_VecI i; } mem;  /* Following msgpack/pack_template.h */
+//  unsigned char buf[4 * sizeof(lua_VecF)];
+//  msgpack_packer *pk = &(ud->u.packed.packer);
+//
+//  lua_Float4 v;
+//  int type = 0, size = 0;
+//  switch ((type = mp_parse_vector(L, idx, &v))) {
+//    case MSGPACK_EXT_VECTOR2: {
+//      size = 2;
+//      _msgpack_storevec(&buf[0 * sizeof(lua_VecF)], (mem.f = v.x, mem.i));
+//      _msgpack_storevec(&buf[1 * sizeof(lua_VecF)], (mem.f = v.y, mem.i));
+//      break;
+//    }
+//    case MSGPACK_EXT_VECTOR3: {
+//      size = 3;
+//      _msgpack_storevec(&buf[0 * sizeof(lua_VecF)], (mem.f = v.x, mem.i));
+//      _msgpack_storevec(&buf[1 * sizeof(lua_VecF)], (mem.f = v.y, mem.i));
+//      _msgpack_storevec(&buf[2 * sizeof(lua_VecF)], (mem.f = v.z, mem.i));
+//      break;
+//    }
+//    case MSGPACK_EXT_VECTOR4:
+//    case MSGPACK_EXT_QUATERNION: {
+//      size = 4;
+//      _msgpack_storevec(&buf[0 * sizeof(lua_VecF)], (mem.f = v.x, mem.i));
+//      _msgpack_storevec(&buf[1 * sizeof(lua_VecF)], (mem.f = v.y, mem.i));
+//      _msgpack_storevec(&buf[2 * sizeof(lua_VecF)], (mem.f = v.z, mem.i));
+//      _msgpack_storevec(&buf[3 * sizeof(lua_VecF)], (mem.f = v.w, mem.i));
+//      break;
+//    }
+//    default:
+//      luaL_error(L, "invalid vector type");
+//      break;
+//  }
+//  msgpack_pack_ext(pk, size * sizeof(lua_VecF), (int8_t)type);
+//  msgpack_pack_ext_body(pk, (const void *)buf, size * sizeof(lua_VecF));
+//}
 
 static LUA_MSGPACK_INLINE void lua_pack_type_extended (lua_State *L, lua_msgpack *ud, int idx) {
   const int t = lua_type(L, idx);
@@ -832,20 +832,20 @@ static LUA_MSGPACK_INLINE void lua_pack_any (lua_State *L, lua_msgpack *ud, int 
       lua_pack_type_extended(L, ud, idx);
       break;
     }
-#if LUA_VERSION_NUM == 504
-    case LUA_TVECTOR:
-      lua_pack_vector(L, ud, idx);
-      break;
-#elif LUA_VERSION_NUM == 503
-    case LUA_TVECTOR2:
-    case LUA_TVECTOR3:
-    case LUA_TVECTOR4:
-    case LUA_TQUAT:
-      lua_pack_vector(L, ud, idx);
-      break;
-#else
-  #error unsupported Lua version
-#endif
+//#if LUA_VERSION_NUM == 504
+//    case LUA_TVECTOR:
+//      lua_pack_vector(L, ud, idx);
+//      break;
+//#elif LUA_VERSION_NUM == 503
+//    case LUA_TVECTOR2:
+//    case LUA_TVECTOR3:
+//    case LUA_TVECTOR4:
+//    case LUA_TQUAT:
+//      lua_pack_vector(L, ud, idx);
+//      break;
+//#else
+//  #error unsupported Lua version
+//#endif
     case LUA_TLIGHTUSERDATA: {
 #if LUA_VERSION_NUM == 501
       if (mp_is_null(L, idx))
